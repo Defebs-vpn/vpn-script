@@ -32,6 +32,35 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Verifikasi file existence
+verify_files() {
+    local required_files=(
+        "setup/setup.sh"
+        "menu/menu-ssh.sh"
+        "functions/check_users.sh"
+        "functions/create_account.sh"
+        "functions/delete_account.sh"
+        "functions/renew_account.sh"
+        "functions/trial_account.sh"
+        "functions/list_members.sh"
+        "functions/list_expired.sh"
+        "functions/lock_account.sh"
+        "functions/unlock_account.sh"
+        "functions/edit_limit_ip.sh"
+        "functions/edit_limit_ip_all.sh"
+    )
+
+    echo "Verifying required files..."
+    for file in "${required_files[@]}"; do
+        if [ ! -f "/tmp/vpn-script/$file" ]; then
+            echo -e "${RED}Error: Required file $file not found${NC}"
+            echo "Please check repository structure"
+            exit 1
+        fi
+    done
+    echo "All required files verified successfully"
+}
+
 # Install required packages
 install_requirements() {
     echo -e "${YELLOW}Installing requirements...${NC}"
@@ -162,6 +191,7 @@ show_success() {
 
 # Main installation
 main() {
+    verify_files
     install_requirements
     clone_repo
     install_scripts
