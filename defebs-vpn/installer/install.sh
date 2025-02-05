@@ -1,0 +1,174 @@
+#!/bin/bash
+# Defebs-vpn Installer
+# Current Date: 2025-02-04 22:39:21
+# Current User: Defebs-vpn
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Repository URL
+REPO_URL="https://github.com/defebs-vpn/vpn-script"
+REPO_BRANCH="main"
+
+# Installation Directory
+INSTALL_DIR="/usr/local/defebs-vpn"
+SCRIPT_DIR="/usr/local/bin"
+
+clear
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "     ${GREEN}Defebs-VPN Script Installer${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "Current Date : 2025-02-04 22:39:21"
+echo -e "Current User : Defebs-vpn"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then
+    echo -e "${RED}Please run as root${NC}"
+    exit 1
+fi
+
+# Install required packages
+install_requirements() {
+    echo -e "${YELLOW}Installing requirements...${NC}"
+    apt update
+    apt install -y git curl wget unzip net-tools ssh dropbear stunnel4 nodejs npm
+}
+
+# Clone repository
+clone_repo() {
+    echo -e "${YELLOW}Cloning repository...${NC}"
+    rm -rf /tmp/vpn-script
+    git clone -b $REPO_BRANCH $REPO_URL /tmp/vpn-script
+}
+
+# Run setup script
+run_setup() {
+    echo -e "${YELLOW}Running setup script...${NC}"
+    if [ -f "/tmp/vpn-script/setup/setup.sh" ]; then
+        chmod +x /tmp/vpn-script/setup/setup.sh
+        bash /tmp/vpn-script/setup/setup.sh
+    else
+        echo -e "${RED}Setup script not found!${NC}"
+        exit 1
+    fi
+}
+
+# Install scripts
+install_scripts() {
+    echo -e "${YELLOW}Installing scripts...${NC}"
+    
+    # Create installation directory
+    mkdir -p $INSTALL_DIR
+    mkdir -p $INSTALL_DIR/functions
+    mkdir -p /etc/vps
+    
+    # Copy files
+    cp -rf /tmp/vpn-script/menu/* $INSTALL_DIR/
+    cp -rf /tmp/vpn-script/functions/* $INSTALL_DIR/functions/
+    cp -rf /tmp/vpn-script/setup/setup.sh $INSTALL_DIR/
+    
+    # Set permissions
+    chmod +x $INSTALL_DIR/menu-ssh.sh
+    chmod +x $INSTALL_DIR/functions/*
+    chmod +x $INSTALL_DIR/setup.sh
+    
+    # Create symlinks
+    ln -sf $INSTALL_DIR/menu-ssh.sh $SCRIPT_DIR/menu-ssh
+    ln -sf $INSTALL_DIR/setup.sh $SCRIPT_DIR/vpn-setup
+    
+    # Create data files
+    touch /etc/vps/user_data
+    touch /etc/vps/expired_users
+    touch /etc/vps/locked_users
+}
+
+# Create update script
+create_update_script() {
+    cat > $SCRIPT_DIR/update-script <<EOF
+#!/bin/bash
+# Update script for Defebs-VPN
+REPO_URL="$REPO_URL"
+REPO_BRANCH="$REPO_BRANCH"
+INSTALL_DIR="$INSTALL_DIR"
+
+echo "Updating Defebs-VPN scripts..."
+rm -rf /tmp/vpn-script
+git clone -b \$REPO_BRANCH \$REPO_URL /tmp/vpn-script
+
+# Update all components
+cp -rf /tmp/vpn-script/menu/* \$INSTALL_DIR/
+cp -rf /tmp/vpn-script/functions/* \$INSTALL_DIR/functions/
+cp -rf /tmp/vpn-script/setup/setup.sh \$INSTALL_DIR/
+
+# Set permissions
+chmod +x \$INSTALL_DIR/menu-ssh.sh
+chmod +x \$INSTALL_DIR/functions/*
+chmod +x \$INSTALL_DIR/setup.sh
+
+# Run setup if needed
+bash \$INSTALL_DIR/setup.sh --update
+
+rm -rf /tmp/vpn-script
+echo "Update completed!"
+EOF
+    chmod +x $SCRIPT_DIR/update-script
+}
+
+# Create uninstall script
+create_uninstall_script() {
+    cat > $SCRIPT_DIR/uninstall-script <<EOF
+#!/bin/bash
+# Uninstall script for Defebs-VPN
+INSTALL_DIR="$INSTALL_DIR"
+SCRIPT_DIR="$SCRIPT_DIR"
+
+echo "Uninstalling Defebs-VPN scripts..."
+
+# Remove installation directory
+rm -rf \$INSTALL_DIR
+
+# Remove symlinks
+rm -f \$SCRIPT_DIR/menu-ssh
+rm -f \$SCRIPT_DIR/vpn-setup
+rm -f \$SCRIPT_DIR/update-script
+rm -f \$SCRIPT_DIR/uninstall-script
+
+echo "Uninstall completed!"
+EOF
+    chmod +x $SCRIPT_DIR/uninstall-script
+}
+
+# Display success message
+show_success() {
+    clear
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "     ${GREEN}Installation Completed!${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e ""
+    echo -e "Available Commands:"
+    echo -e "${YELLOW}menu-ssh${NC}         - Open SSH/VPN menu"
+    echo -e "${YELLOW}vpn-setup${NC}        - Run VPN setup"
+    echo -e "${YELLOW}update-script${NC}     - Update scripts"
+    echo -e "${YELLOW}uninstall-script${NC}  - Uninstall scripts"
+    echo -e ""
+    echo -e "Installation Directory: ${GREEN}$INSTALL_DIR${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
+
+# Main installation
+main() {
+    install_requirements
+    clone_repo
+    install_scripts
+    run_setup
+    create_update_script
+    create_uninstall_script
+    show_success
+}
+
+main
