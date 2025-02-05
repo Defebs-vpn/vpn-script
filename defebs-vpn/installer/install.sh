@@ -10,13 +10,12 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# Repository URL
-REPO_URL="https://github.com/defebs-vpn/vpn-script"
+# Repository Information
+REPO_OWNER="Defebs-vpn"
+REPO_NAME="vpn-script"
+REPO_URL="https://github.com/$REPO_OWNER/$REPO_NAME"
 REPO_BRANCH="main"
-
-# Installation Directory
-INSTALL_DIR="/usr/local/defebs-vpn"
-SCRIPT_DIR="/usr/local/bin"
+REPO_RAW_URL="https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/$REPO_BRANCH"
 
 clear
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -31,6 +30,18 @@ if [ "$EUID" -ne 0 ]; then
     echo -e "${RED}Please run as root${NC}"
     exit 1
 fi
+
+# Verify download URL before cloning
+verify_repo() {
+    echo "Verifying repository access..."
+    if curl --output /dev/null --silent --head --fail "$REPO_RAW_URL/installer/install.sh"; then
+        echo "Repository access verified successfully"
+    else
+        echo -e "${RED}Error: Cannot access repository${NC}"
+        echo "Please check repository URL and permissions"
+        exit 1
+    fi
+}
 
 # Verifikasi file existence
 verify_files() {
@@ -87,35 +98,7 @@ run_setup() {
     fi
 }
 
-# Install scripts
-install_scripts() {
-    echo -e "${YELLOW}Installing scripts...${NC}"
-    
-    # Create installation directory
-    mkdir -p $INSTALL_DIR
-    mkdir -p $INSTALL_DIR/functions
-    mkdir -p /etc/vps
-    
-    # Copy files
-    cp -rf /tmp/vpn-script/menu/* $INSTALL_DIR/
-    cp -rf /tmp/vpn-script/functions/* $INSTALL_DIR/functions/
-    cp -rf /tmp/vpn-script/setup/setup.sh $INSTALL_DIR/
-    
-    # Set permissions
-    chmod +x $INSTALL_DIR/menu-ssh.sh
-    chmod +x $INSTALL_DIR/functions/*
-    chmod +x $INSTALL_DIR/setup.sh
-    
-    # Create symlinks
-    ln -sf $INSTALL_DIR/menu-ssh.sh $SCRIPT_DIR/menu-ssh
-    ln -sf $INSTALL_DIR/setup.sh $SCRIPT_DIR/vpn-setup
-    
-    # Create data files
-    touch /etc/vps/user_data
-    touch /etc/vps/expired_users
-    touch /etc/vps/locked_users
-}
-
+#
 # Create update script
 create_update_script() {
     cat > $SCRIPT_DIR/update-script <<EOF
@@ -191,10 +174,10 @@ show_success() {
 
 # Main installation
 main() {
+    verify_repo
     verify_files
     install_requirements
     clone_repo
-    install_scripts
     run_setup
     create_update_script
     create_uninstall_script
